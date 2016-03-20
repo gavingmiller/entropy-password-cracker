@@ -19,7 +19,7 @@ end
 end_time = Time.now
 
 time = end_time - start_time
-puts "Finished entropy collection; 10,000 passwords in #{time}s"
+puts "Finished entropy collection; #{passwords.count} passwords in #{time}s"
 # gets
 
 # Open a SQLite 3 database file
