@@ -1,9 +1,9 @@
 # Password Cracker Based on Leaked Entropy in a Database
 
 This project demonstrates how password entropy saved alongside a password hash can be used to significantly
-reduced the time required to crack passwords in the database.
+reduce the time required to crack hashed passwords.
 
-For a further explanation of the project see: http://gavinmiller.io/2016/a-curious-tale-of-security-gone-awry/
+For a further explanation see: http://gavinmiller.io/2016/a-curious-tale-of-security-gone-awry/
 
 ## How to Use
 
