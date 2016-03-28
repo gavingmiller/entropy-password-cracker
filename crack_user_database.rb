@@ -6,8 +6,9 @@ require 'bcrypt'
 tester = Zxcvbn::Tester.new
 entropies = {}
 
-passwords = open("common_passwords.txt").readlines
+passwords = open("password_dictionaries/10_million_password_list_top_10000.txt").readlines
 
+puts "Reading common passwords"
 start_time = Time.now
 passwords.each do |password|
   password = password.chomp
@@ -22,37 +23,28 @@ time = end_time - start_time
 puts "Finished entropy collection; #{passwords.count} passwords in #{time}s"
 
 # Open a SQLite 3 database file
-db = SQLite3::Database.new 'db/entropy.sqlite3'
+db = SQLite3::Database.new('db/entropy.sqlite3')
 
-db.execute("SELECT * FROM users") do |user|
-  email    = user[1]
-  password = user[4]
-  entropy  = user[5]
+db.execute("SELECT * FROM users ORDER BY entropy") do |user|
+  email       = user[1]
+  pwd_hash    = user[4]
+  pwd_entropy = user[5]
 
-  candidate_passwords = entropies[entropy]
+  puts "User: #{email}, entropy: #{pwd_entropy}, password_hash: #{pwd_hash} "
+
+  candidate_passwords = entropies[pwd_entropy]
   if candidate_passwords != nil
-    puts "  For user: #{email}"
-    puts "   Entropy: #{entropy}"
-    puts "  Password: #{password}"
-    print "Candidates: "
+    passwords = candidate_passwords.select do |candidate|
+      BCrypt::Password.new(pwd_hash) == candidate
+    end.flatten
 
-    candidate_passwords.each do |candidate|
-      print candidate
-      if BCrypt::Password.new(password) == candidate
-        print "       <--- matched (╯°Д°)╯︵ ┻━┻"
-        puts
-      else
-        puts
-      end
-      print "            "
+    # Should be 0 or 1 -- if > 1, something wrong
+    if passwords.length == 0
+      puts "No Matching Candidates"
+    elsif passwords.length == 1
+      puts "Password is: #{passwords.first}"
     end
   else
-    puts "  For user: #{email}"
-    puts "   Entropy: #{entropy}"
-    puts "  Password: #{password}"
-    puts "Candidates: None Found"
-    puts ""
+    puts "No Candidates Found"
   end
-
-  gets
 end
