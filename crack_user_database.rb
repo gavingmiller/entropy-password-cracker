@@ -20,15 +20,14 @@ end_time = Time.now
 
 time = end_time - start_time
 puts "Finished entropy collection; #{passwords.count} passwords in #{time}s"
-# gets
 
 # Open a SQLite 3 database file
-db = SQLite3::Database.new 'entropy.sqlite3'
+db = SQLite3::Database.new 'db/entropy.sqlite3'
 
 db.execute("SELECT * FROM users") do |user|
   email    = user[1]
-  password = user[6]
-  entropy  = user[7]
+  password = user[4]
+  entropy  = user[5]
 
   candidate_passwords = entropies[entropy]
   if candidate_passwords != nil
