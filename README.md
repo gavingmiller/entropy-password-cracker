@@ -3,7 +3,7 @@
 This project demonstrates how password entropy saved alongside a password hash can be used to significantly
 reduce the time required to crack hashed passwords.
 
-For a further explanation see: http://gavinmiller.io/2016/a-curious-tale-of-security-gone-awry/
+For a further explanation see: http://gavinmiller.io/2016/a-tale-of-security-gone-wrong/
 
 ## How to Use
 
