@@ -6,55 +6,47 @@ require 'fileutils'
 
 # Password file downloaded from:
 # https://github.com/danielmiessler/SecLists/tree/master/Passwords
-passwords_file = "password_dictionaries/10_million_password_list_top_10000.txt"
-passwords = open(passwords_file).readlines
+password_file = 'password_dictionaries/10_million_password_list_top_10000.txt'
+database_file = 'db/entropy.sqlite3'
+tester = Zxcvbn::Tester.new
+threads = 4
 
 puts "Deleting old database"
-database_name = 'db/entropy.sqlite3'
-FileUtils.rm(database_name)
+FileUtils.rm database_file
 
 puts "Creating new database"
-db = SQLite3::Database.new(database_name)
-db.execute(<<-EOL
-  CREATE TABLE `users` (
-    `id`  INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-    `email`       varchar,
-    `first_name`  varchar,
-    `last_name`   varchar,
-    `password`    varchar,
-    `entropy`     real,
-    `created_at`  datetime NOT NULL,
-    `updated_at`  datetime NOT NULL
-  );
-  EOL
-)
+SQLite3::Database.new(database_file) do |db|
 
-puts "Filling new database"
-puts "This will take a bit, because BCrypt is slow! Grab a coffee."
-passwords.each do |password|
-  password = password.chomp
+  db.execute(<<-SQL)
+    CREATE TABLE users (
+      id            INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      email         VARCHAR,
+      first_name    VARCHAR,
+      last_name     VARCHAR,
+      password_hash CHAR(60),
+      entropy       REAL
+    )
+  SQL
 
-  first_name  = Faker::Name.first_name
-  last_name   = Faker::Name.last_name
-  email       = Faker::Internet.email
-  entropy     = Zxcvbn.test(password, []).entropy
-  hashed_pwd  = BCrypt::Password.create(password)
+  puts "Filling new database"
+  puts "This will take a bit, because BCrypt is slow! Grab a coffee."
 
-  sql = <<-EOL
-  INSERT INTO Users
-  (email, first_name, last_name, password, entropy, created_at, updated_at)
-  VALUES (
-    "#{email}",
-    "#{first_name}",
-    "#{last_name}",
-    "#{hashed_pwd}",
-    "#{entropy}",
-    "#{DateTime.now}",
-    "#{DateTime.now}"
-  );
-  EOL
+  File.readlines(password_file).map(&:chomp).each do |password|
+    params = [
+      Faker::Internet.email,
+      Faker::Name.first_name,
+      Faker::Name.last_name,
+      BCrypt::Password.create(password),
+      tester.test(password).entropy
+    ]
 
-  db.execute(sql)
-  print "."
+    db.execute(<<-SQL, params)
+      INSERT INTO users (email, first_name, last_name, password_hash, entropy)
+      VALUES (?, ?, ?, ?, ?);
+    SQL
+
+    print "."
+
+  end
+
 end
-
