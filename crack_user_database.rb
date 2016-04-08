@@ -1,50 +1,44 @@
 require 'zxcvbn'
-require 'pry'
 require 'sqlite3'
 require 'bcrypt'
 
+password_file = 'password_dictionaries/10_million_password_list_top_10000.txt'
+database_file = 'db/entropy.sqlite3'
 tester = Zxcvbn::Tester.new
-entropies = {}
-
-passwords = open("password_dictionaries/10_million_password_list_top_10000.txt").readlines
 
 puts "Reading common passwords"
 start_time = Time.now
-passwords.each do |password|
-  password = password.chomp
-  entropy = tester.test(password)
 
-  entropies[entropy.entropy] ||= []
-  entropies[entropy.entropy] << password
+entropies = File.readlines(password_file).map(&:chomp).each_with_object({}) do |password, obj|
+  entropy = tester.test(password).entropy
+  (obj[entropy] ||= []) << password
 end
-end_time = Time.now
 
-time = end_time - start_time
-puts "Finished entropy collection; #{passwords.count} passwords in #{time}s"
+puts "Finished entropy collection in #{Time.now - start_time}s"
 
 # Open a SQLite 3 database file
-db = SQLite3::Database.new('db/entropy.sqlite3')
+SQLite3::Database.new(database_file) do |db|
 
-db.execute("SELECT * FROM users ORDER BY entropy") do |user|
-  email       = user[1]
-  pwd_hash    = user[4]
-  pwd_entropy = user[5]
+  sql = <<-SQL
+    SELECT email, password_hash, entropy
+    FROM users
+    ORDER BY entropy
+  SQL
 
-  puts "User: #{email}, entropy: #{pwd_entropy}, password_hash: #{pwd_hash} "
+  db.execute(sql) do |email, password_hash, entropy|
 
-  candidate_passwords = entropies[pwd_entropy]
-  if candidate_passwords != nil
-    passwords = candidate_passwords.select do |candidate|
-      BCrypt::Password.new(pwd_hash) == candidate
-    end.flatten
+    puts "User: #{email}, entropy: #{entropy}, password_hash: #{password_hash}"
 
-    # Should be 0 or 1 -- if > 1, something wrong
-    if passwords.length == 0
-      puts "No Matching Candidates"
-    elsif passwords.length == 1
-      puts "Password is: #{passwords.first}"
+    next unless candidate_passwords = entropies[entropy]
+
+    match = candidate_passwords.find do |candidate|
+      BCrypt::Password.new(password_hash) == candidate
     end
-  else
-    puts "No Candidates Found"
+
+    if match
+      puts "Password is: #{match}"
+    else
+      puts "No Matching Candidates"
+    end
   end
 end
